@@ -17,7 +17,7 @@
 
 # == Class: pure_repmgr::config
 #
-# Configure a replicated cluster with repmgr from pure repo 
+# Configure a replicated cluster with repmgr from pure repo
 class pure_repmgr::config
 (
   $repmgr_password = $pure_repmgr::repmgr_password,
@@ -61,7 +61,7 @@ class pure_repmgr::config
 
   Pure_postgres::Config::Pg_hba <<| tag == $pure_repmgr::repmgr_cluster_name |>>
 
-  include pure_repmgr::config::ssh
+  include '::pure_repmgr::config::ssh'
 
   file { $pure_repmgr::params::repmgr_conf:
     ensure  => file,
@@ -71,8 +71,8 @@ class pure_repmgr::config
     mode    => '0640',
   }
 
-  include pure_postgres::config
-  include pure_postgres::service
+  include '::pure_postgres::config'
+  include '::pure_postgres::service'
 
   file { "${pure_postgres::pg_etc_dir}/conf.d/wal.conf":
     ensure  => file,
@@ -107,7 +107,8 @@ class pure_repmgr::config
 
   if $facts['pure_replication_role'] == 'master' {
     @@pure_repmgr::config::clone_standby {"clone from ${facts['networking']['ip']}":
-      upstreamhost => $facts['networking']['ip'],
+#      upstreamhost => $facts['networking']['ip'],
+      upstreamhost => $facts['fqdn'],
       datadir      => $pure_postgres::pg_data_dir,
       require      => File["${pure_postgres::pg_etc_dir}/conf.d"],
       tag          => $pure_repmgr::repmgr_cluster_name,
@@ -123,12 +124,12 @@ class pure_repmgr::config
   #If no node was active, puppet assumes this is an initializing cluster and will run initdb on this specific node only.
   #This logic breaks:
   #- When more than one node has the parameter $pure_repmgr::initial_master initial master set puppet is started at the same time.
-  #  In that case puppet will initialize the second node, before puppetdb knows that the first was already initialized 
+  #  In that case puppet will initialize the second node, before puppetdb knows that the first was already initialized
   #  and you have two masters in one cluster.
   #- When puppetdb lags and doesn't have the correct facts yet, and this node has an empty datafolder
   #  I can only think of a poorly executed migraton of all puppet nodes to a new puppet cluster,
   #  with incorrect data path and all agents starting at exactly the same time.
-  #  To prevent that situation from happening you can unset pure_repmgr::initial_master 
+  #  To prevent that situation from happening you can unset pure_repmgr::initial_master
   #  when the initial master is properly initialized since it only has use in a initializing cluster.
 
   if $pure_repmgr::initial_master {
@@ -146,7 +147,7 @@ class pure_repmgr::config
     if size($active_nodes) == 0 {
       #There is no node active in this cluster, so this should be an empty cluster. Let initdb do its thing.
       #Also note that initdb will only init an empty datadir.
-      include pure_postgres::config::initdb
+      include '::pure_postgres::config::initdb'
     }
   }
 
@@ -180,15 +181,25 @@ class pure_repmgr::config
     tag             => $pure_repmgr::repmgr_cluster_name,
   }
 
-  class {'pure_repmgr::config::register':
+  class {'::pure_repmgr::config::register':
     require          => Pure_postgres::Service::Started['postgres started'],
   }
 
   if $pure_repmgr::barman_server {
-    class {'pure_barman::client':
+    class {'::pure_barman::client':
       barman_server => $pure_repmgr::barman_server,
     }
+  } else {
+    if defined(File[ "${pure_postgres::params::pg_etc_dir}/conf.d" ]) {
+      file { "${pure_postgres::params::pg_etc_dir}/conf.d/backup.conf":
+        ensure => file,
+        owner  => $pure_postgres::params::postgres_user,
+        group  => $pure_postgres::params::postgres_group,
+        mode   => '0640',
+        source => 'puppet:///modules/pure_repmgr/backup.conf',
+        notify => Class['pure_postgres::service::restart'],
+      }
+    }
   }
-
 }
 

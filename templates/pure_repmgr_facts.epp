@@ -59,8 +59,8 @@ except Exception as e:
 try:
    #This is set by puppet to the hostname fqdn (exactly same as used in repmgr.conf template)
    hostname='<%= $facts[fqdn] %>'
-   #search repl_nodes table for row of this host and read nodeid
-   cur.execute("select id from repmgr_<%= $pure_repmgr::repmgr_cluster_name %>.repl_nodes where name = %s", (hostname,))
+   #search nodes table for row of this host and read nodeid
+   cur.execute("select node_id from repmgr.nodes where node_name = %s", (hostname,))
    r=cur.next()
    print('pure_cloud_nodeid={0}'.format(r[0]))
 except Exception as e:

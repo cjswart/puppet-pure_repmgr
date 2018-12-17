@@ -23,7 +23,7 @@ define pure_repmgr::config::clone_standby(
 )
 {
 
-  $check_cmd = shellquote( '/bin/ssh', '-o', 'NumberOfPasswordPrompts 0', $upstreamhost, 'ls' )
+  $check_cmd = shellquote( '/bin/ssh', '-o', 'NumberOfPasswordPrompts=0', '-o', 'StrictHostKeyChecking=no', $upstreamhost, 'ls' )
   $clone_cmd = shellquote( "${pure_postgres::pg_bin_dir}/repmgr_clone.py", '-f', $pure_repmgr::repmgr_conf, '-H', $upstreamhost,
                             '-D', $datadir )
 
@@ -31,7 +31,7 @@ define pure_repmgr::config::clone_standby(
   #for registering, registers, creates a repmgr.conf usable for cloning and runs clone command.
   #On next run, nodeid will be read as a fact and added to the main repmgr.conf.
   file { 'clone.py':
-    ensure  => 'file',
+    ensure  => file,
     path    => "${pure_postgres::pg_bin_dir}/repmgr_clone.py",
     content => epp('pure_repmgr/clone.epp'),
     owner   => $pure_postgres::postgres_user,

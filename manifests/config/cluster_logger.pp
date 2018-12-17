@@ -60,7 +60,7 @@ class pure_repmgr::config::cluster_logger
   }
 
   file {'/etc/logrotate.d/pure-cluster-logger':
-    ensure => 'file',
+    ensure => file,
     source => 'puppet:///modules/pure_repmgr/logrotate_cluster_logger',
     owner  => 'root',
     group  => 'root',
@@ -102,7 +102,7 @@ class pure_repmgr::config::cluster_logger
   }
 
   file {'/usr/pgpure/cluster_logger/pure_cluster_logger.py':
-    ensure  => 'file',
+    ensure  => file,
     path    => '/usr/pgpure/cluster_logger/pure_cluster_logger.py',
     content => epp('pure_repmgr/pure_cluster_logger.epp'),
     owner   => 'pure_cluster_logger',
@@ -112,7 +112,7 @@ class pure_repmgr::config::cluster_logger
   }
 
   file {'/var/log/pgpure/cluster_logger/cluster_logger.log':
-    ensure => 'file',
+    ensure => file,
     owner  => 'pure_cluster_logger',
     group  => 'pgpure',
     mode   => '0640',
@@ -122,7 +122,7 @@ class pure_repmgr::config::cluster_logger
     exec { 'systemctl daemon-reload':
       refreshonly => true,
       cwd         => '/',
-      path        => '/bin'
+      path        => '/bin',
     }
   }
 

@@ -78,15 +78,6 @@ if __name__ == "__main__":
 
     #So now we have parsed the repmgr conf file. Lets set some variablen from that and check some validity checks.
     try:
-        clustername=repmgrconf['cluster']
-        if re.search('[^a-zA-Z0-9]+', clustername):
-            print('{0} contains an invalid clustername "{0}". Quiting to prevent sql injection.'.format(repmgrfile, clustername))
-            sys.exit(-2)
-    except Exception as e:
-        print(e)
-        print('Something went wrong reading clustername from '+repmgrfile)
-        sys.exit(-3)
-    try:
        nodename=repmgrconf['node_name']
     except:
        nodename=None
@@ -118,7 +109,7 @@ if __name__ == "__main__":
     if not master:
        print('Looking for master.')
        try:
-          cur.execute('select conninfo from repmgr_{0}.repl_nodes'.format(clustername))
+          cur.execute('select conninfo from repmgr.nodes')
           for r in cur:
              constr=r[0]
              print('Checking {0}'.format(constr))
@@ -156,7 +147,7 @@ if __name__ == "__main__":
 
     print('Checking if this node was already registered.')
     try:
-        master.execute('select id from repmgr_{0}.repl_nodes where name = %s'.format(clustername), (nodename,))
+        master.execute('select node_id from repmgr.nodes where node_name = \'{0}\''.format(nodename))
         r=master.next()
         if r[0]:
             nodeid = r[0]
@@ -164,14 +155,14 @@ if __name__ == "__main__":
     except Exception as e:
         pass
 
-    if not nodeid and 'node' in repmgrconf.keys():
-        nodeid = repmgrconf['node']
+    if not nodeid and 'node_id' in repmgrconf.keys():
+        nodeid = repmgrconf['node_id']
 
     if not nodeid:
         print('Determining next free nodeid.')
         try:
             print('Determining next free nodeid.')
-            master.execute('select max(id) from repmgr_{0}.repl_nodes'.format(clustername))
+            master.execute('select max(node_id) from repmgr.nodes')
             r=master.next()
             nodeid=r[0]+1
         except:
@@ -179,18 +170,18 @@ if __name__ == "__main__":
 
     #So now we have a nodeid. Is it already registered?
     try:
-        master.execute('select name from repmgr_{0}.repl_nodes where id = %s'.format(clustername), (nodeid,))
+        master.execute('select node_name from repmgr.nodes where node_id = {0}'.format(nodeid))
         r=master.next()
         registerednode = r[0]
     except:
-        print('node not yet registered in repmgr_{0}.repl_nodes. Lets do it right now.'.format(clustername))
+        print('node not yet registered in repmgr.nodes. Lets do it right now.')
         master.execute('ROLLBACK')
-        qry = 'insert into repmgr_{0}.repl_nodes'.format(clustername)
-        qry += ' (id, type, upstream_node_id, cluster, name, conninfo, slot_name, priority, active)'
-        qry += "values(%s, 'standby', Null, %s, %s, %s, %s, 100, true)"
+        qry = 'insert into repmgr.nodes'
+        qry += ' (node_id, type, upstream_node_id, node_name, conninfo, slot_name, priority, active, repluser, config_file)'
+        qry += "values(%s, 'standby', Null, %s, %s, %s, 100, true, 'repmgr', '/etc/repmgr.conf')"
         conninfo = repmgrconf['conninfo'].replace("'", "")
         repslot = 'repmgr_slot_'+str(nodeid)
-        master.execute(qry, (nodeid, clustername, nodename, conninfo, repslot))
+        master.execute(qry, (nodeid, nodename, conninfo, repslot))
         registerednode = nodename
 
     if registerednode != nodename:
@@ -198,8 +189,8 @@ if __name__ == "__main__":
         sys.exit(-2)
 
     try:
-        qry =  'update repmgr_{0}.repl_nodes set upstream_node_id = upstream.id from repmgr_{0}.repl_nodes upstream'.format(clustername)
-        qry += ' where repmgr_testdb2.repl_nodes.id = %s and upstream.name = %s'
+        qry =  'update repmgr.nodes set upstream_node_id = upstream.node_id from repmgr.nodes upstream'
+        qry += ' where repmgr.nodes.node_id = %s and upstream.node_name = %s'
         master.execute(qry, (nodeid, args.upstreamhost))
         print('I have succesfully set upstream server id')
     except:
@@ -209,7 +200,7 @@ if __name__ == "__main__":
        print('Generating temporary repmgr.conf. Original should be updated by next puppet run.')
        of = tempfile.NamedTemporaryFile(prefix='repmgr.conf')
        conffile = of.name
-       repmgrconf['node'] = nodeid
+       repmgrconf['node_id'] = nodeid
        for k in sorted(repmgrconf.keys()):
           of.write('{0}={1}\n'.format(k, repmgrconf[k]))
        of.flush()

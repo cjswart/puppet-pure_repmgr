@@ -39,7 +39,7 @@ class pure_repmgr::install
   }
 
   #By default don't initdb. For intial master, config will include initdb class himself.
-  class { 'pure_postgres':
+  class { '::pure_postgres':
     do_initdb   => false,
     pg_data_dir => $pg_data_dir,
     pg_xlog_dir => $pg_xlog_dir,
@@ -48,7 +48,7 @@ class pure_repmgr::install
   }
 
   if $pure_repmgr::cluster_logger {
-    include pure_repmgr::config::cluster_logger
+    include '::pure_repmgr::config::cluster_logger'
   }
 
 }

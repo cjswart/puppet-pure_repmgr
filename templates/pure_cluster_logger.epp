@@ -491,7 +491,7 @@ class pg_cluster():
         cn = psycopg2.connect(database='repmgr', port=self.port, host=self.local_node_name, user='repmgr')
         #open a cursor and query the repl_nodes table
         cur=cn.cursor()
-        cur.execute('select conninfo from repmgr_<%= $pure_repmgr::repmgr_cluster_name %>.repl_nodes')
+        cur.execute('select conninfo from repmgr.nodes')
         #Loop through the table and return connections
         for r in cur:
             #Convert connectring to dict of connect options

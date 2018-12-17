@@ -17,7 +17,7 @@
 
 # == Class: pure_repmgr::config::ssh
 #
-# Configure a replicated cluster with repmgr from pure repo 
+# Configure a replicated cluster with repmgr from pure repo
 class pure_repmgr::config::ssh
 (
 )
@@ -35,8 +35,14 @@ class pure_repmgr::config::ssh
 
   Ssh_authorized_key <<| tag == $pure_repmgr::dnsname |>>
 
-  class { 'pure_postgres::config::ssh':
-    tags => [ $pure_repmgr::dnsname, $pure_repmgr::barman_server ],
+  if $pure_repmgr::barman_server and ($pure_repmgr::barman_server != undef) {
+    $tags = [ $pure_repmgr::dnsname, $pure_repmgr::barman_server ]
+  } else {
+    $tags = $pure_repmgr::dnsname
+  }
+
+  class { '::pure_postgres::config::ssh':
+    tags => $tags,
   }
 
 }

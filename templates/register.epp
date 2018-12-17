@@ -74,21 +74,16 @@ try:
       k, v = l.split('=', 1)
       #Add value to dict with key as key. Strip spaces from key and val.
       conf[k.strip()] = v.strip()
-   #Now we should be able to read the cluster name from the config file
-   clustername=conf['cluster']
-   if re.search('[^a-zA-Z0-9]+', clustername):
-      print('Invalid clustername "{0}". Quiting to prevent sql injection.'.format(clustername))
-      sys.exit(-2)
    #And we should have nodename under which a db server would be registered if it already is.
    nodename=conf['node_name']
 except Exception as e:
    print(e)
-   print('Something went wrong reading clustername from '+conffile)
+   print('Something went wrong reading parameter from '+conffile)
    sys.exit(-3)
 
 print('Checking locally if this node was already registered.')
 try:
-   cur.execute('select id from repmgr_{0}.repl_nodes where name = %s'.format(clustername), (nodename,))
+   cur.execute('select node_id from repmgr.nodes where node_name = \'{0}\''.format(nodename))
    r=cur.next()
    if r[0]:
       print('Already registered as node {0}.'.format(r[0]))
@@ -121,7 +116,7 @@ except Exception as e:
 if not master:
    print('Looking for master.')
    try:
-      cur.execute('select conninfo from repmgr_{0}.repl_nodes'.format(clustername))
+      cur.execute('select conninfo from repmgr.nodes')
       for r in cur:
          constr=r[0]
          print('Checking {0}'.format(constr))
@@ -155,7 +150,7 @@ if not master:
 
 try:
    print('Determining next free nodeid.')
-   master.execute('select max(id) from repmgr_{0}.repl_nodes'.format(clustername))
+   master.execute('select max(node_id) from repmgr.nodes')
    r=master.next()
    nodeid=r[0]+1
 except:
@@ -165,7 +160,7 @@ try:
    print('Generating temporary repmgr.conf')
    of = tempfile.NamedTemporaryFile(prefix='repmgr.conf')
    conffile = of.name
-   conf['node'] = nodeid
+   conf['node_id'] = nodeid
    for k in sorted(conf.keys()):
       of.write('{0}={1}\n'.format(k,conf[k]))
    of.flush()
